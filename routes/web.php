@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('listings', ListingController::class);
     
     Route::get('/inquiries', [InquiryController::class, 'index'])->name('inquiries.index');
+    Route::get('/inquiries/create', [InquiryController::class, 'create'])->name('inquiries.create');
+    Route::post('/inquiries', [InquiryController::class, 'store'])->name('inquiries.store');
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show'])->name('inquiries.show');
     Route::patch('/inquiries/{inquiry}', [InquiryController::class, 'update'])->name('inquiries.update');
     
