@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar/day-events', [CalendarController::class, 'dayEvents'])->name('calendar.day-events');
     
     Route::middleware('admin')->group(function () {
+        Route::delete('/settings/logo', [SettingsController::class, 'deleteLogo'])->name('settings.logo.delete');
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
     });

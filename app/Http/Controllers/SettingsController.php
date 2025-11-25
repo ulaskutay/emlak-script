@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
@@ -31,7 +32,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'agency_name' => 'required|string|max:255',
-            'agency_logo' => 'nullable|image|max:2048',
+            'agency_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'agency_phone' => 'nullable|string|max:255',
             'agency_whatsapp' => 'nullable|string|max:255',
             'default_currency' => 'required|in:TRY,USD,EUR',
@@ -39,16 +40,41 @@ class SettingsController extends Controller
             'email_notifications' => 'nullable|boolean',
         ]);
 
+        // Handle logo upload separately
+        if ($request->hasFile('agency_logo')) {
+            $oldLogo = Setting::get('agency_logo');
+            
+            // Delete old logo if exists
+            if ($oldLogo && Storage::disk('public')->exists($oldLogo)) {
+                Storage::disk('public')->delete($oldLogo);
+            }
+            
+            // Store new logo
+            $path = $request->file('agency_logo')->store('settings', 'public');
+            Setting::set('agency_logo', $path);
+        }
+
+        // Handle other settings
         foreach ($validated as $key => $value) {
-            if ($key === 'agency_logo' && $request->hasFile('agency_logo')) {
-                $path = $request->file('agency_logo')->store('settings', 'public');
-                Setting::set($key, $path);
-            } else {
+            if ($key !== 'agency_logo') {
                 Setting::set($key, $value === true ? 'true' : ($value === false ? 'false' : $value));
             }
         }
 
         return back()->with('success', 'Ayarlar başarıyla güncellendi.');
+    }
+
+    public function deleteLogo()
+    {
+        $logo = Setting::get('agency_logo');
+        
+        if ($logo && Storage::disk('public')->exists($logo)) {
+            Storage::disk('public')->delete($logo);
+        }
+        
+        Setting::set('agency_logo', null);
+        
+        return back()->with('success', 'Logo başarıyla silindi.');
     }
 }
 
