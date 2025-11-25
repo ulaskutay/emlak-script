@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StatisticsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -18,9 +19,7 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::get('/statistics', function() {
-        return view('statistics.index');
-    })->name('statistics.index');
+    Route::get('/statistics', [StatisticsController::class, 'index'])->name('statistics.index');
     
     Route::resource('listings', ListingController::class);
     
