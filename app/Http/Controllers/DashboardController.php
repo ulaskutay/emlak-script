@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Listing;
 use App\Models\Agent;
 use App\Models\Inquiry;
+use App\Models\CalendarEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -74,8 +75,9 @@ class DashboardController extends Controller
         $topAgents = [];
         if ($user->isAdmin()) {
             $topAgents = Agent::with('user')
+                ->withCount(['listings', 'activeListings', 'inquiries'])
                 ->orderBy('active_listings_count', 'desc')
-                ->limit(3)
+                ->limit(8)
                 ->get();
         }
 
@@ -86,7 +88,18 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        return view('dashboard.index', compact('stats', 'topAgents', 'latestListings'));
+        // Upcoming calendar events
+        $calendarEventsQuery = CalendarEvent::with(['listing', 'customer', 'agent.user'])
+            ->whereDate('start_at', '>=', now()->toDateString())
+            ->orderBy('start_at', 'asc');
+
+        if ($user->isAgent()) {
+            $calendarEventsQuery->where('agent_id', $user->agent->id);
+        }
+
+        $upcomingEvents = $calendarEventsQuery->limit(5)->get();
+
+        return view('dashboard.index', compact('stats', 'topAgents', 'latestListings', 'upcomingEvents'));
     }
 }
 

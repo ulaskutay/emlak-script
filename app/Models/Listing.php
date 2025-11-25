@@ -17,6 +17,8 @@ class Listing extends Model
         'title',
         'slug',
         'description',
+        'video_url',
+        'video_path',
         'type',
         'status',
         'price',
@@ -25,14 +27,37 @@ class Listing extends Model
         'city',
         'district',
         'address',
+        'latitude',
+        'longitude',
         'area_m2',
         'bedrooms',
+        'living_rooms',
+        'total_rooms',
+        'balconies',
         'bathrooms',
         'floor',
+        'building_age',
+        'total_floors',
+        'building_type',
         'heating_type',
         'furnished',
+        'furnished_type',
+        'balcony',
+        'parking',
+        'garden',
+        'pool',
+        'elevator',
+        'security',
+        'terrace',
+        'inside_site',
+        'balcony',
+        'parking',
+        'garden',
+        'pool',
+        'elevator',
         'tags',
         'published_at',
+        'show_on_web',
     ];
 
     protected function casts(): array
@@ -41,6 +66,11 @@ class Listing extends Model
             'published_at' => 'datetime',
             'tags' => 'array',
             'furnished' => 'boolean',
+            'balcony' => 'boolean',
+            'parking' => 'boolean',
+            'garden' => 'boolean',
+            'pool' => 'boolean',
+            'elevator' => 'boolean',
             'price' => 'decimal:2',
         ];
     }
@@ -51,15 +81,14 @@ class Listing extends Model
 
         static::creating(function ($listing) {
             if (empty($listing->slug)) {
-                $listing->slug = Str::slug($listing->title);
-                
-                // Ensure unique slug
-                $originalSlug = $listing->slug;
-                $count = 1;
-                while (static::where('slug', $listing->slug)->exists()) {
-                    $listing->slug = $originalSlug . '-' . $count;
-                    $count++;
-                }
+                $listing->slug = static::generateUniqueSlug($listing->title);
+            }
+        });
+
+        static::updating(function ($listing) {
+            // Eğer title değiştiyse veya slug boşsa, yeni slug oluştur
+            if ($listing->isDirty('title') || empty($listing->slug)) {
+                $listing->slug = static::generateUniqueSlug($listing->title, $listing->id);
             }
         });
 
@@ -74,6 +103,22 @@ class Listing extends Model
         });
     }
 
+    protected static function generateUniqueSlug(string $title, ?int $excludeId = null): string
+    {
+        $slug = Str::slug($title);
+        $originalSlug = $slug;
+        $count = 1;
+
+        while (static::where('slug', $slug)
+            ->when($excludeId, fn($query) => $query->where('id', '!=', $excludeId))
+            ->exists()) {
+            $slug = $originalSlug . '-' . $count;
+            $count++;
+        }
+
+        return $slug;
+    }
+
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
@@ -86,6 +131,12 @@ class Listing extends Model
 
     public function coverPhoto()
     {
+        // Use eager loaded photos if available, otherwise query
+        if ($this->relationLoaded('photos')) {
+            return $this->photos->where('is_cover', true)->first() 
+                ?? $this->photos->first();
+        }
+        
         return $this->photos()->where('is_cover', true)->first() 
             ?? $this->photos()->first();
     }

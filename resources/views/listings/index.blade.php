@@ -5,7 +5,7 @@
 @section('header-title', 'İlanlar')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="deleteModal()">
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow p-6">
         <form method="GET" action="{{ route('listings.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -33,7 +33,8 @@
             @if(auth()->user()->isAdmin())
             <div>
                 <select name="agent_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Tüm Emlakçılar</option>
+                    <option value="">Tümü (Emlakçılar & Ofis)</option>
+                    <option value="office" {{ request('agent_id') === 'office' ? 'selected' : '' }}>Ofis</option>
                     @foreach($agents as $agent)
                         <option value="{{ $agent->id }}" {{ request('agent_id') == $agent->id ? 'selected' : '' }}>
                             {{ $agent->user->name }}
@@ -78,12 +79,18 @@
                     @forelse($listings as $listing)
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @php $coverPhoto = $listing->coverPhoto(); @endphp
-                            @if($coverPhoto)
-                                <img src="{{ asset('storage/' . $coverPhoto->path) }}" alt="{{ $listing->title }}" 
+                            @php 
+                                $coverPhoto = $listing->photos->where('is_cover', true)->first() ?? $listing->photos->first();
+                            @endphp
+                            @if($coverPhoto && $coverPhoto->exists())
+                                <img src="{{ $coverPhoto->url }}" alt="{{ $listing->title }}" 
                                      class="w-16 h-16 object-cover rounded">
                             @else
-                                <div class="w-16 h-16 bg-gray-200 rounded"></div>
+                                <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
                             @endif
                         </td>
                         <td class="px-6 py-4">
@@ -113,13 +120,13 @@
                             {{ $listing->city }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <a href="{{ route('listings.show', $listing) }}" class="text-primary-600 hover:text-primary-900">Görüntüle</a>
                             <a href="{{ route('listings.edit', $listing) }}" class="text-blue-600 hover:text-blue-900">Düzenle</a>
-                            <form action="{{ route('listings.destroy', $listing) }}" method="POST" class="inline" 
-                                  onsubmit="return confirm('Bu ilanı silmek istediğinize emin misiniz?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">Sil</button>
-                            </form>
+                            <button type="button" 
+                                    @click="openDeleteModal({{ $listing->id }}, '{{ addslashes($listing->title) }}')"
+                                    class="text-red-600 hover:text-red-900">
+                                Sil
+                            </button>
                         </td>
                     </tr>
                     @empty
@@ -130,10 +137,102 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-6 py-4 border-t border-gray-200">
-            {{ $listings->links() }}
+        @if($listings->hasPages())
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div class="flex items-center justify-center">
+                {{ $listings->links() }}
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
+
+    <!-- Delete Confirmation Modal -->
+    <div x-show="show"
+    x-cloak
+    class="fixed inset-0 z-50 overflow-y-auto"
+    @keydown.escape.window="closeModal()"
+    style="display: none;">
+    <!-- Backdrop -->
+    <div x-show="show" 
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+         @click="closeModal()"></div>
+
+    <!-- Modal -->
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div x-show="show"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             class="relative transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+            
+            <!-- Modal Content -->
+            <div class="bg-white px-6 pb-4 pt-6" @click.away.stop>
+                <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-full bg-red-100">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                
+                <h3 class="text-center text-lg font-semibold text-gray-900 mb-2">
+                    İlanı Sil
+                </h3>
+                
+                <p class="text-center text-sm text-gray-500 mb-6">
+                    "<span x-text="listingTitle" class="font-medium text-gray-900"></span>" adlı ilanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                </p>
+                
+                <div class="flex space-x-3" x-show="deleteUrl">
+                    <button type="button"
+                            @click="closeModal()"
+                            class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                        İptal
+                    </button>
+                    
+                    <form :action="deleteUrl" method="POST" class="flex-1">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                                class="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                            Sil
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function deleteModal() {
+    return {
+        show: false,
+        listingId: null,
+        listingTitle: '',
+        deleteUrl: '',
+        openDeleteModal(id, title) {
+            this.listingId = id;
+            this.listingTitle = title;
+            this.deleteUrl = '{{ url('/listings') }}/' + id;
+            this.show = true;
+        },
+        closeModal() {
+            this.show = false;
+            this.listingId = null;
+            this.listingTitle = '';
+            this.deleteUrl = '';
+        }
+    }
+}
+</script>
 @endsection
 

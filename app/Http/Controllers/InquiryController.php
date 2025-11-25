@@ -26,6 +26,15 @@ class InquiryController extends Controller
             });
         }
 
+        // Search filter
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('phone', 'like', '%' . $request->search . '%')
+                  ->orWhere('email', 'like', '%' . $request->search . '%');
+            });
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -34,7 +43,8 @@ class InquiryController extends Controller
             $query->where('assigned_agent_id', $request->agent_id);
         }
 
-        $inquiries = $query->orderBy('created_at', 'desc')->paginate(15);
+        $perPage = $request->get('per_page', 15);
+        $inquiries = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
         $agents = $user->isAdmin() ? Agent::with('user')->get() : collect();
 
         return view('inquiries.index', compact('inquiries', 'agents'));

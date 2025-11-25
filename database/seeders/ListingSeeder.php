@@ -63,17 +63,8 @@ class ListingSeeder extends Seeder
                     'published_at' => $status === 'active' ? now()->subDays(rand(1, 30)) : null,
                 ]);
 
-                // Create placeholder photo paths (in real app, these would be actual uploaded files)
-                // For now, we'll just create the records with placeholder paths
-                $photoCount = rand(3, 8);
-                for ($j = 0; $j < $photoCount; $j++) {
-                    ListingPhoto::create([
-                        'listing_id' => $listing->id,
-                        'path' => 'listings/placeholder.jpg', // Placeholder path
-                        'is_cover' => $j === 0,
-                        'order' => $j,
-                    ]);
-                }
+                // Note: Photos will be empty in seeder - users need to upload real photos
+                // Creating photo records is skipped to avoid broken image links
             }
         }
 

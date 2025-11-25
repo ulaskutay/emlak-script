@@ -22,7 +22,11 @@ class ListingController extends Controller
         if ($user->isAgent()) {
             $query->where('agent_id', $user->agent->id);
         } elseif ($request->filled('agent_id')) {
-            $query->where('agent_id', $request->agent_id);
+            if ($request->agent_id === 'office') {
+                $query->whereNull('agent_id');
+            } else {
+                $query->where('agent_id', $request->agent_id);
+            }
         }
 
         // Filters
@@ -63,13 +67,25 @@ class ListingController extends Controller
     public function store(StoreListingRequest $request)
     {
         $user = auth()->user();
-        $agentId = $user->isAdmin() ? $request->agent_id : $user->agent->id;
+        // Agent ID: If admin and selected, use it. If agent, use agent's id. Otherwise null (office).
+        $agentId = $user->isAdmin() ? ($request->agent_id ?: null) : ($user->agent ? $user->agent->id : null);
+
+        // Handle video upload if file is provided, otherwise use URL
+        $videoPath = null;
+        $videoUrl = null;
+        
+        if ($request->hasFile('video_file')) {
+            $videoPath = $request->file('video_file')->store('listings/videos', 'public');
+        } elseif ($request->filled('video_url')) {
+            $videoUrl = $request->video_url;
+        }
 
         $listing = Listing::create([
             'agent_id' => $agentId,
             'title' => $request->title,
-            'slug' => Str::slug($request->title),
             'description' => $request->description,
+            'video_url' => $videoUrl,
+            'video_path' => $videoPath,
             'type' => $request->type,
             'status' => $request->status ?? 'pending',
             'price' => $request->price,
@@ -78,14 +94,32 @@ class ListingController extends Controller
             'city' => $request->city,
             'district' => $request->district,
             'address' => $request->address,
+            'latitude' => $request->latitude ?: null,
+            'longitude' => $request->longitude ?: null,
             'area_m2' => $request->area_m2,
             'bedrooms' => $request->bedrooms,
+            'living_rooms' => $request->living_rooms,
+            'total_rooms' => $request->total_rooms,
+            'balconies' => $request->balconies,
             'bathrooms' => $request->bathrooms,
             'floor' => $request->floor,
+            'building_age' => $request->building_age,
+            'total_floors' => $request->total_floors,
+            'building_type' => $request->building_type,
             'heating_type' => $request->heating_type,
             'furnished' => $request->boolean('furnished'),
+            'furnished_type' => $request->furnished_type,
+            'balcony' => $request->boolean('balcony'),
+            'parking' => $request->boolean('parking'),
+            'garden' => $request->boolean('garden'),
+            'pool' => $request->boolean('pool'),
+            'elevator' => $request->boolean('elevator'),
+            'security' => $request->boolean('security'),
+            'terrace' => $request->boolean('terrace'),
+            'inside_site' => $request->boolean('inside_site'),
             'tags' => $request->tags ? explode(',', $request->tags) : null,
             'published_at' => $request->status === 'active' ? now() : null,
+            'show_on_web' => $request->boolean('show_on_web'),
         ]);
 
         // Handle photos
@@ -98,11 +132,9 @@ class ListingController extends Controller
 
     public function show(Listing $listing)
     {
-        $this->authorize('view', $listing);
-        
-        $listing->load(['agent.user', 'photos', 'inquiries.customer']);
-
-        return view('listings.show', compact('listing'));
+        // This will be used for web site viewing in the future
+        // For now, redirect to edit page
+        return redirect()->route('listings.edit', $listing);
     }
 
     public function edit(Listing $listing)
@@ -125,10 +157,30 @@ class ListingController extends Controller
 
         $user = auth()->user();
         
+        // Handle video upload/update
+        $videoPath = $listing->video_path;
+        $videoUrl = $request->video_url;
+        
+        if ($request->hasFile('video_file')) {
+            // Delete old video file if exists
+            if ($listing->video_path && Storage::disk('public')->exists($listing->video_path)) {
+                Storage::disk('public')->delete($listing->video_path);
+            }
+            $videoPath = $request->file('video_file')->store('listings/videos', 'public');
+            $videoUrl = null; // Clear URL if file is uploaded
+        } elseif ($request->filled('video_url')) {
+            // Delete old video file if URL is provided
+            if ($listing->video_path && Storage::disk('public')->exists($listing->video_path)) {
+                Storage::disk('public')->delete($listing->video_path);
+            }
+            $videoPath = null; // Clear path if URL is provided
+        }
+
         $data = [
             'title' => $request->title,
-            'slug' => Str::slug($request->title),
             'description' => $request->description,
+            'video_url' => $videoUrl,
+            'video_path' => $videoPath,
             'type' => $request->type,
             'status' => $request->status,
             'price' => $request->price,
@@ -137,17 +189,53 @@ class ListingController extends Controller
             'city' => $request->city,
             'district' => $request->district,
             'address' => $request->address,
+            'latitude' => $request->latitude ?: null,
+            'longitude' => $request->longitude ?: null,
             'area_m2' => $request->area_m2,
             'bedrooms' => $request->bedrooms,
+            'living_rooms' => $request->living_rooms,
+            'total_rooms' => $request->total_rooms,
+            'balconies' => $request->balconies,
             'bathrooms' => $request->bathrooms,
             'floor' => $request->floor,
+            'building_age' => $request->building_age,
+            'total_floors' => $request->total_floors,
+            'building_type' => $request->building_type,
             'heating_type' => $request->heating_type,
             'furnished' => $request->boolean('furnished'),
+            'furnished_type' => $request->furnished_type,
+            'balcony' => $request->boolean('balcony'),
+            'parking' => $request->boolean('parking'),
+            'garden' => $request->boolean('garden'),
+            'pool' => $request->boolean('pool'),
+            'elevator' => $request->boolean('elevator'),
+            'security' => $request->boolean('security'),
+            'terrace' => $request->boolean('terrace'),
+            'inside_site' => $request->boolean('inside_site'),
             'tags' => $request->tags ? explode(',', $request->tags) : null,
+            'show_on_web' => $request->boolean('show_on_web'),
         ];
+        
+        // Add new fields if provided
+        if ($request->filled('living_rooms')) {
+            $data['living_rooms'] = $request->living_rooms;
+        }
+        if ($request->filled('total_rooms')) {
+            $data['total_rooms'] = $request->total_rooms;
+        }
+        if ($request->filled('building_age')) {
+            $data['building_age'] = $request->building_age;
+        }
+        if ($request->filled('building_type')) {
+            $data['building_type'] = $request->building_type;
+        }
 
-        if ($user->isAdmin() && $request->filled('agent_id')) {
-            $data['agent_id'] = $request->agent_id;
+        // Update agent_id: admin can set to any agent or null (office), agent can only set their own or null
+        if ($user->isAdmin()) {
+            $data['agent_id'] = $request->agent_id ?: null;
+        } elseif ($user->isAgent()) {
+            // Agents can set their own id or null (office)
+            $data['agent_id'] = $request->filled('agent_id') && $request->agent_id == $user->agent->id ? $user->agent->id : ($request->agent_id ? null : $listing->agent_id);
         }
 
         if ($request->status === 'active' && !$listing->published_at) {

@@ -19,7 +19,8 @@ class CustomerController extends Controller
             });
         }
 
-        $customers = $query->orderBy('created_at', 'desc')->paginate(15);
+        $perPage = $request->get('per_page', 15);
+        $customers = $query->orderBy('created_at', 'desc')->paginate($perPage)->withQueryString();
 
         return view('customers.index', compact('customers'));
     }

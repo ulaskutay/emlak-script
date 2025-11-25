@@ -101,6 +101,8 @@ DB_PASSWORD=
 
 **Not:** Eğer MySQL root kullanıcısı için şifre ayarladıysanız, `DB_PASSWORD` alanına şifrenizi yazın.
 
+**Adres ve Harita:** Proje ücretsiz OpenStreetMap/Nominatim servislerini kullanmaktadır. Herhangi bir API anahtarı gerekmez.
+
 ### 6. Veritabanını Oluşturun
 
 Migration'ları çalıştırın ve demo verileri ekleyin:

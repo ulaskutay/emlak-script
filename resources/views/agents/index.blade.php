@@ -73,7 +73,9 @@
     <!-- Pagination -->
     @if($agents->hasPages())
     <div class="bg-white rounded-lg shadow px-6 py-4">
-        {{ $agents->links() }}
+        <div class="flex items-center justify-center">
+            {{ $agents->links() }}
+        </div>
     </div>
     @endif
 </div>

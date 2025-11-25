@@ -18,6 +18,10 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    Route::get('/statistics', function() {
+        return view('statistics.index');
+    })->name('statistics.index');
+    
     Route::resource('listings', ListingController::class);
     
     Route::get('/inquiries', [InquiryController::class, 'index'])->name('inquiries.index');
@@ -30,7 +34,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/agents', [AgentController::class, 'index'])->name('agents.index');
     Route::get('/agents/{agent}', [AgentController::class, 'show'])->name('agents.show');
     
-    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::resource('calendar', CalendarController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+    Route::get('/calendar/day-events', [CalendarController::class, 'dayEvents'])->name('calendar.day-events');
     
     Route::middleware('admin')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');

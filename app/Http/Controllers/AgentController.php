@@ -31,7 +31,15 @@ class AgentController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10, ['*'], 'inquiries_page');
 
-        return view('agents.show', compact('agent', 'listings', 'inquiries'));
+        // Get upcoming calendar events (future or today)
+        $calendarEvents = $agent->calendarEvents()
+            ->with(['listing', 'customer'])
+            ->whereDate('start_at', '>=', now()->toDateString())
+            ->orderBy('start_at', 'asc')
+            ->limit(10)
+            ->get();
+
+        return view('agents.show', compact('agent', 'listings', 'inquiries', 'calendarEvents'));
     }
 }
 
