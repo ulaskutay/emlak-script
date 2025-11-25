@@ -99,7 +99,9 @@ class Listing extends Model
         });
 
         static::saved(function ($listing) {
-            $listing->agent->updateActiveListingsCount();
+            if ($listing->agent) {
+                $listing->agent->updateActiveListingsCount();
+            }
         });
     }
 
